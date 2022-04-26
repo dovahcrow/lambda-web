@@ -1,15 +1,15 @@
 [package]
-name = "lambda-web"
-version = "0.1.9"
 authors = ["Hanabusa Masahiro"]
+categories = ["web-programming::http-server"]
 description = "Run Rust web frameworks on AWS Lambda"
 edition = "2018"
+exclude = ["/docker/"]
+keywords = ["lambda", "actix-web", "axum", "rocket", "warp"]
+license = "MIT"
+name = "lambda-web"
 readme = "README.md"
 repository = "https://github.com/hanabu/lambda-web"
-license = "MIT"
-keywords = ["lambda", "actix-web", "axum", "rocket", "warp"]
-categories = ["web-programming::http-server"]
-exclude = ["/docker/"]
+version = "0.1.9"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -26,25 +26,25 @@ warp03 = ["hyper", "warp"]
 br = ["brotli"]
 
 [dependencies]
-lambda_runtime = "0.4.1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 base64 = "0.13"
+lambda_runtime = "0.5.1"
 percent-encoding = "2"
+serde = {version = "1", features = ["derive"]}
+serde_json = "1"
 
-hyper = { version = "0.14", default-features = false, features = [], optional = true }
-actix-web = { version = "4", default-features = false, features = ["cookies", "macros"], optional = true }
-actix-http = { version = "3", default-features = false, optional = true }
-actix-service = { version = "2", optional = true }
-rocket = { version = "0.5.0-rc.1", default-features = false, optional = true }
-warp = { version = "0.3.2", default-features = false, optional = true }
-brotli = { version = "3", features = ["std"], optional = true }
+actix-http = {version = "3", default-features = false, optional = true}
+actix-service = {version = "2", optional = true}
+actix-web = {version = "4", default-features = false, features = ["cookies", "macros"], optional = true}
+brotli = {version = "3", features = ["std"], optional = true}
+hyper = {version = "0.14", default-features = false, features = [], optional = true}
+rocket = {version = "0.5.0-rc.1", default-features = false, optional = true}
+warp = {version = "0.3.2", default-features = false, optional = true}
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros"] }
-axum = { version = "0.3.2", default-features = false }
-warp = { version = "0.3.2", default-features = false }
+axum = {version = "0.5.3", default-features = false}
+tokio = {version = "1", features = ["macros"]}
 tower = "0.4"
+warp = {version = "0.3.2", default-features = false}
 
 [[example]]
 name = "actix"
@@ -64,6 +64,6 @@ required-features = ["hyper"]
 
 [profile.release]
 # Size optimization
-opt-level = "s"
-lto = "fat"
 codegen-units = 1
+lto = "fat"
+opt-level = "s"

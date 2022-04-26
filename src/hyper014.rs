@@ -6,12 +6,11 @@ use crate::request::LambdaHttpEvent;
 use core::convert::TryFrom;
 use core::future::Future;
 use lambda_runtime::{
-    run as lambda_runtime_run, Context as LambdaContext, Error as LambdaError,
-    Handler as LambdaHandler,
+    run as lambda_runtime_run, Error as LambdaError, LambdaEvent, Service,
 };
-use std::cell::RefCell;
 use std::convert::Infallible;
 use std::pin::Pin;
+use std::task::{Poll, Context};
 
 type HyperRequest = hyper::Request<hyper::Body>;
 type HyperResponse<B> = hyper::Response<B>;
@@ -114,33 +113,39 @@ where
     B: hyper::body::HttpBody,
     <B as hyper::body::HttpBody>::Error: std::error::Error + Send + Sync + 'static,
 {
-    lambda_runtime_run(HyperHandler(RefCell::new(svc))).await?;
+    lambda_runtime_run(HyperHandler(svc)).await?;
     Ok(())
 }
 
 /// Lambda_runtime handler for hyper
-struct HyperHandler<S, B>(RefCell<S>)
+struct HyperHandler<S, B>(S)
 where
     S: hyper::service::Service<HyperRequest, Response = HyperResponse<B>, Error = Infallible>
         + 'static,
     B: hyper::body::HttpBody,
     <B as hyper::body::HttpBody>::Error: std::error::Error + Send + Sync + 'static;
 
-impl<S, B> LambdaHandler<LambdaHttpEvent<'_>, serde_json::Value> for HyperHandler<S, B>
+impl<S, B> Service<LambdaEvent<LambdaHttpEvent<'_>>> for HyperHandler<S, B>
 where
     S: hyper::service::Service<HyperRequest, Response = HyperResponse<B>, Error = Infallible>
         + 'static,
     B: hyper::body::HttpBody,
     <B as hyper::body::HttpBody>::Error: std::error::Error + Send + Sync + 'static,
 {
+    type Response = serde_json::Value;
     type Error = LambdaError;
-    type Fut = Pin<Box<dyn Future<Output = Result<serde_json::Value, Self::Error>>>>;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+
+    fn poll_ready(&mut self, _: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        Poll::Ready(Ok(()))
+    }
 
     /// Lambda handler function
     /// Parse Lambda event as hyper request,
     /// serialize hyper response to Lambda JSON response
-    fn call(&self, event: LambdaHttpEvent, _context: LambdaContext) -> Self::Fut {
+    fn call(&mut self, event: LambdaEvent<LambdaHttpEvent>) -> Self::Future {
         use serde_json::json;
+        let event = event.payload;
 
         // check if web client supports content-encoding: br
         let client_br = event.client_supports_brotli();
@@ -151,7 +156,7 @@ where
         let hyper_request = HyperRequest::try_from(event);
 
         // Call hyper service when request parsing succeeded
-        let svc_call = hyper_request.map(|req| self.0.borrow_mut().call(req));
+        let svc_call = hyper_request.map(|req| self.0.call(req));
 
         let fut = async move {
             match svc_call {
